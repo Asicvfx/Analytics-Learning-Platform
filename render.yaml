@@ -1,6 +1,13 @@
-# Render blueprint — backend only. DB lives in Supabase, frontend on Vercel.
-# In Render: New > Blueprint > pick this repo. Then fill the env vars marked
-# sync:false (secrets) in the dashboard.
+# Render blueprint — backend + PostgreSQL (frontend lives on Vercel).
+# In Render: New > Blueprint > pick this repo. Render provisions the DB and
+# injects its internal DATABASE_URL into the web service automatically.
+# Only CORS_ALLOWED_ORIGINS / CSRF_TRUSTED_ORIGINS (the Vercel URL) need filling.
+databases:
+  - name: alp-db
+    plan: free
+    databaseName: analytics_platform
+    user: alp
+
 services:
   - type: web
     name: alp-backend
@@ -20,12 +27,14 @@ services:
           type: web
           name: alp-backend
           property: host
-      # Supabase connection string (Settings > Database > Connection string,
-      # use the Session pooler URI). Set in the dashboard.
+      # Internal connection string from the alp-db database above.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: alp-db
+          property: connectionString
+      # Internal Render network is private — no SSL needed for the DB link.
       - key: DB_SSL_REQUIRE
-        value: "true"
+        value: "false"
       # Your Vercel frontend URL, e.g. https://your-app.vercel.app
       - key: CORS_ALLOWED_ORIGINS
         sync: false
