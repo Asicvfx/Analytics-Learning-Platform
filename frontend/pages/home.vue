@@ -62,7 +62,7 @@ onMounted(async () => {
       <section>
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-semibold text-ink">Недавние отчёты</h2>
-          <NuxtLink to="/dashboards" class="text-sm text-brand-deep font-medium">
+          <NuxtLink to="/categories" class="text-sm text-brand-deep font-medium">
             Все отчёты →
           </NuxtLink>
         </div>

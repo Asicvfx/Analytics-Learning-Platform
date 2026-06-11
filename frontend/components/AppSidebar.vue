@@ -10,10 +10,7 @@ interface Item {
 
 const items = computed<Item[]>(() => [
   { label: "Главная", to: "/home", show: () => true },
-  { label: "Отчёты", to: "/dashboards", show: () => true },
-  { label: "Категории", to: "/categories", show: () => true },
-  { label: "Обучающие материалы", to: "/learning", show: () => true },
-  { label: "Инструкции", to: "/instructions", show: () => true },
+  { label: "Отчёты", to: "/categories", show: () => true },
   { label: "Админ-панель", to: "/admin", show: () => auth.canManage },
   { label: "Пользователи", to: "/admin/users", show: () => auth.isAdmin },
   { label: "Журнал аудита", to: "/admin/audit-logs", show: () => auth.isAdmin },
@@ -23,6 +20,11 @@ const items = computed<Item[]>(() => [
 const visible = computed(() => items.value.filter((i) => i.show()));
 
 function isActive(to: string) {
+  // "Отчёты" (/categories) also stays active on report detail pages.
+  if (to === "/categories") {
+    return route.path.startsWith("/categories") ||
+      route.path.startsWith("/dashboards");
+  }
   return route.path === to || (to !== "/home" && route.path.startsWith(to));
 }
 </script>

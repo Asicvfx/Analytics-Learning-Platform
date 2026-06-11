@@ -56,8 +56,45 @@ onMounted(async () => {
         title="Отчёты не найдены"
         message="Измените запрос поиска."
       />
-      <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <DashboardCard v-for="d in filtered" :key="d.id" :dashboard="d" />
+      <div v-else class="space-y-4">
+        <div
+          v-for="(d, i) in filtered"
+          :key="d.id"
+          class="card p-5 flex flex-col md:flex-row md:items-start gap-4"
+        >
+          <div class="min-w-0 flex-1">
+            <h3 class="font-semibold text-ink text-lg leading-snug">
+              {{ i + 1 }}. {{ d.title }}
+            </h3>
+            <p class="text-muted mt-1">{{ d.description }}</p>
+            <a
+              v-if="d.reportUrl"
+              :href="d.reportUrl"
+              target="_blank"
+              rel="noopener"
+              class="text-sm text-brand-deep hover:underline break-all mt-2 inline-block"
+            >
+              {{ d.reportUrl }}
+            </a>
+          </div>
+          <div class="flex flex-row md:flex-col gap-2 shrink-0">
+            <a
+              v-if="d.reportUrl"
+              :href="d.reportUrl"
+              target="_blank"
+              rel="noopener"
+              class="btn-primary text-center whitespace-nowrap"
+            >
+              Открыть отчёт ↗
+            </a>
+            <NuxtLink
+              :to="`/dashboards/${d.slug}`"
+              class="btn-secondary text-center whitespace-nowrap"
+            >
+              Инструкция и FAQ
+            </NuxtLink>
+          </div>
+        </div>
       </div>
     </template>
   </div>
