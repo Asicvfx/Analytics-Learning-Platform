@@ -9,15 +9,15 @@ interface Item {
 }
 
 const items = computed<Item[]>(() => [
-  { label: "Home", to: "/home", show: () => true },
-  { label: "Dashboards", to: "/dashboards", show: () => true },
-  { label: "Categories", to: "/categories", show: () => true },
-  { label: "Learning Materials", to: "/learning", show: () => true },
-  { label: "Instructions", to: "/instructions", show: () => true },
-  { label: "Admin Panel", to: "/admin", show: () => auth.canManage },
-  { label: "Users", to: "/admin/users", show: () => auth.isAdmin },
-  { label: "Audit Logs", to: "/admin/audit-logs", show: () => auth.isAdmin },
-  { label: "Settings", to: "/settings", show: () => true },
+  { label: "Главная", to: "/home", show: () => true },
+  { label: "Отчёты", to: "/dashboards", show: () => true },
+  { label: "Категории", to: "/categories", show: () => true },
+  { label: "Обучающие материалы", to: "/learning", show: () => true },
+  { label: "Инструкции", to: "/instructions", show: () => true },
+  { label: "Админ-панель", to: "/admin", show: () => auth.canManage },
+  { label: "Пользователи", to: "/admin/users", show: () => auth.isAdmin },
+  { label: "Журнал аудита", to: "/admin/audit-logs", show: () => auth.isAdmin },
+  { label: "Настройки", to: "/settings", show: () => true },
 ]);
 
 const visible = computed(() => items.value.filter((i) => i.show()));
@@ -39,7 +39,7 @@ function isActive(to: string) {
       >
         A
       </div>
-      <span class="font-bold text-ink leading-tight">Analytics<br />Platform</span>
+      <span class="font-bold text-ink leading-tight">Kazakhtelecom<br />Business BI</span>
     </NuxtLink>
 
     <nav class="flex flex-col gap-1">
@@ -63,7 +63,7 @@ function isActive(to: string) {
              hover:bg-red-50 text-left"
       @click="auth.logout()"
     >
-      Logout
+      Выйти
     </button>
   </aside>
 </template>

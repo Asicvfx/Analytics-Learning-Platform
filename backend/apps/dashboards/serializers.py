@@ -16,13 +16,16 @@ class DashboardCardSerializer(serializers.ModelSerializer):
     category = CategoryMiniSerializer()
     tags = serializers.SerializerMethodField()
     accessLevel = serializers.CharField(source="access_level")
+    reportUrl = serializers.CharField(source="report_url")
+    reportKind = serializers.CharField(source="report_kind")
     sheetCount = serializers.SerializerMethodField()
     lastUpdatedAt = serializers.DateTimeField(source="last_updated_at")
 
     class Meta:
         model = Dashboard
         fields = ["id", "title", "slug", "description", "category", "tags",
-                  "accessLevel", "status", "sheetCount", "lastUpdatedAt"]
+                  "accessLevel", "reportUrl", "reportKind", "status",
+                  "sheetCount", "lastUpdatedAt"]
 
     def get_tags(self, obj):
         return obj.tag_list
@@ -38,6 +41,8 @@ class DashboardDetailSerializer(serializers.ModelSerializer):
     category = CategoryMiniSerializer()
     tags = serializers.SerializerMethodField()
     accessLevel = serializers.CharField(source="access_level")
+    reportUrl = serializers.CharField(source="report_url")
+    reportKind = serializers.CharField(source="report_kind")
     businessPurpose = serializers.CharField(source="business_purpose")
     ownerName = serializers.CharField(source="owner_name")
     lastUpdatedAt = serializers.DateTimeField(source="last_updated_at")
@@ -47,8 +52,9 @@ class DashboardDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dashboard
         fields = ["id", "title", "slug", "description", "businessPurpose",
-                  "ownerName", "accessLevel", "status", "tags", "category",
-                  "sheets", "learningMaterial", "lastUpdatedAt"]
+                  "ownerName", "accessLevel", "reportUrl", "reportKind",
+                  "status", "tags", "category", "sheets", "learningMaterial",
+                  "lastUpdatedAt"]
 
     def get_tags(self, obj):
         return obj.tag_list
@@ -74,12 +80,16 @@ class DashboardWriteSerializer(serializers.ModelSerializer):
     ownerName = serializers.CharField(
         source="owner_name", required=False, allow_blank=True)
     accessLevel = serializers.CharField(source="access_level", required=False)
+    reportUrl = serializers.CharField(source="report_url", required=False,
+                                      allow_blank=True)
+    reportKind = serializers.CharField(source="report_kind", required=False)
     tags = serializers.ListField(child=serializers.CharField(), required=False)
 
     class Meta:
         model = Dashboard
         fields = ["id", "title", "slug", "description", "businessPurpose",
-                  "ownerName", "categoryId", "accessLevel", "status", "tags"]
+                  "ownerName", "categoryId", "accessLevel", "reportUrl",
+                  "reportKind", "status", "tags"]
 
     def _tags_to_text(self, validated):
         if "tags" in validated:

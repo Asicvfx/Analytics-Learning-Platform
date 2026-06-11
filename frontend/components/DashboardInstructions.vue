@@ -33,8 +33,8 @@ defineProps<{ material: LearningMaterial | null }>();
         rel="noopener"
         class="card p-5 block hover:shadow-lg transition"
       >
-        <p class="font-semibold text-ink">▶ Video lesson</p>
-        <p class="text-sm text-muted mt-1">Watch how to use this dashboard.</p>
+        <p class="font-semibold text-ink">▶ Видеоурок</p>
+        <p class="text-sm text-muted mt-1">Посмотрите, как пользоваться отчётом.</p>
       </a>
       <a
         v-if="material.presentationUrl"
@@ -43,8 +43,8 @@ defineProps<{ material: LearningMaterial | null }>();
         rel="noopener"
         class="card p-5 block hover:shadow-lg transition"
       >
-        <p class="font-semibold text-ink">📊 Presentation</p>
-        <p class="text-sm text-muted mt-1">Open the dashboard presentation.</p>
+        <p class="font-semibold text-ink">📊 Презентация</p>
+        <p class="text-sm text-muted mt-1">Откройте презентацию отчёта.</p>
       </a>
     </div>
   </div>
@@ -52,7 +52,7 @@ defineProps<{ material: LearningMaterial | null }>();
   <StateBlocks
     v-else
     variant="empty"
-    title="No instructions yet"
-    message="Learning materials have not been added for this dashboard."
+    title="Материалы пока не добавлены"
+    message="Для этого отчёта ещё нет инструкции."
   />
 </template>

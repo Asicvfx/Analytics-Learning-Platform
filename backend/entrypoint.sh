@@ -10,9 +10,15 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Seed demo data only if the database is empty (safe to run every deploy).
-echo "Seeding demo data (if empty)..."
-python manage.py seed_demo --if-empty || true
+# Seed the catalog. Set RESEED=1 (env) to wipe & rebuild the catalog from code
+# (keeps users); otherwise only seed when the DB is empty.
+if [ "$RESEED" = "1" ]; then
+    echo "Reseeding catalog (RESEED=1)..."
+    python manage.py seed_demo --reseed || true
+else
+    echo "Seeding catalog (if empty)..."
+    python manage.py seed_demo --if-empty || true
+fi
 
 PORT="${PORT:-8000}"
 echo "Starting gunicorn on :${PORT}..."

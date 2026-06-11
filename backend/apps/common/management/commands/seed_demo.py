@@ -1,12 +1,19 @@
-"""Seed the database with demo (fake) data only.
+"""Seed the catalog: categories (applications), reports, and learning materials.
 
-Idempotent-ish: pass --if-empty to skip when categories already exist.
-All data here is fictional and safe to deploy publicly.
+The catalog content lives in code (authoritative). Reports are external links
+(Qlik Sense / web tools / Telegram bots) shown as cards with a description,
+an "open report" button, learning materials and an FAQ.
+
+Usage:
+  seed_demo                 seed (adds missing items)
+  seed_demo --if-empty      skip entirely if categories already exist
+  seed_demo --reseed        wipe the catalog (categories/dashboards/sheets/
+                            widgets/learning/permissions) and rebuild it,
+                            preserving users, roles and audit logs.
+
+Note: qtest/Qlik and 10.x links are internal corporate resources and open only
+from the corporate network/VPN.
 """
-import random
-from datetime import date, timedelta
-from decimal import Decimal
-
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -14,82 +21,225 @@ from django.utils import timezone
 
 from apps.accounts.models import Role
 from apps.categories.models import Category
-from apps.dashboards.models import (
-    Dashboard,
-    DashboardPermission,
-    DemoOrderRecord,
-    DemoOrganizationRecord,
-    DemoProcurementRecord,
-    DemoProviderSpeedRecord,
-    DemoRevenueRecord,
-    DemoSalesRecord,
-)
+from apps.dashboards.models import Dashboard, DashboardPermission
 from apps.learning.models import LearningMaterial
 from apps.sheets.models import DashboardSheet
 from apps.widgets.models import DashboardWidget
 
 User = get_user_model()
 
-REGIONS = ["Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe"]
-ORG_TYPES = ["LLP", "JSC", "IE", "State", "NGO"]
-PROVIDERS = ["AlphaNet", "BetaLink", "GammaTel", "DeltaWave"]
+# --- Support contacts (BI department), appended to instructions ---
+SUPPORT = (
+    "\n\nПоддержка — Отдел BI:\n"
+    "• Баймбетова Гульмира — +7 702 752 3253\n"
+    "• Бекбаева Нургуль — 8 (7142) 573-419, +7 702 703 7171\n"
+    "• Тамырбаев Даурен — +7 747 746 5015"
+)
 
-CATEGORIES = [
-    ("Revenue", "revenue", "Revenue and business performance dashboards",
-     "chart-line", 1),
-    ("Orders", "orders", "Customer order analytics", "shopping-cart", 2),
-    ("BIN Analytics", "bin-analytics", "Legal entities and organizations",
-     "building", 3),
-    ("Contacts", "contacts", "Organization contact availability", "phone", 4),
-    ("Education and Healthcare Objects", "education-healthcare",
-     "Demo analytics about education and healthcare objects", "hospital", 5),
-    ("Provider SpeedTest Map", "provider-speedtest",
-     "Internet provider quality indicators", "wifi", 6),
-    ("Government Procurement", "government-procurement",
-     "Procurement lots and competitors", "gavel", 7),
-    ("Sales Tools", "sales-tools", "Sales support and offer generation",
-     "briefcase", 8),
-    ("AI Tools", "ai-tools", "Demo AI analytics tools", "cpu", 9),
-    ("Instructions", "instructions", "Platform usage guides", "book", 10),
+# --- Shared Qlik navigation FAQ ---
+SHARED_FAQ = [
+    {"question": "Навигация между листами",
+     "answer": "Используйте кнопку навигации сверху справа, чтобы открыть "
+               "список всех листов отчёта, либо щёлкайте по стрелкам "
+               "«вперёд»/«назад» для перехода между листами."},
+    {"question": "Как экспортировать данные",
+     "answer": "Щёлкните правой кнопкой мыши по таблице → «Загрузить как…» → "
+               "«Данные» → включите «Форматирование таблицы» → «Экспорт». Если "
+               "файл не появился, проверьте вкладку «Загрузки» в браузере."},
+    {"question": "Как сохранить отчёт",
+     "answer": "Следуйте инструкции по экспорту данных — выгрузите нужную "
+               "таблицу в Excel."},
+    {"question": "Как изменить порядок столбцов",
+     "answer": "Перетащите заголовки столбцов в нужном порядке."},
+    {"question": "Как искать значения",
+     "answer": "Используйте значок лупы рядом с полями для поиска и фильтрации."},
 ]
 
-# (title, slug, category_slug, access_level, [sheet titles], tags)
+# --- Instruction texts ---
+FLAGSHIP_CONTENT = (
+    "Цель отчёта: представление оперативных данных для анализа "
+    "производительности и эффективности.\n\n"
+    "Доступ: перейдите по ссылке и войдите, используя логин и пароль от "
+    "вашего аккаунта CDN.\n\n"
+    "Основные разделы (листы):\n"
+    "• «Новые установки / Отток» — динамика новых установок и оттока.\n"
+    "• «Доходы» — доход в разрезе макрорегионов, услуг и сегментов.\n\n"
+    "Настройка фильтров:\n"
+    "Фильтровать данные можно по полям со значком лупы. Доступные фильтры: "
+    "Тип заказа, Макрорегион, Услуга, Филиал, Сегмент, Отчётный период. "
+    "Выберите значения и нажмите зелёную галочку, чтобы применить; красный "
+    "крестик или Esc — отмена. Для диапазона дат используйте символы "
+    ">=, <=, >, < в поле «Дата заказа».\n\n"
+    "Экспорт в Excel:\n"
+    "ПКМ по таблице → «Загрузить как…» → «Данные» → включить «Форматирование "
+    "таблицы» → «Экспорт».\n\n"
+    "Примеры использования: анализ по новым установкам; анализ по оттоку; "
+    "выгрузка по макрорегиону/филиалу/сегменту; выгрузка в разрезе услуг; "
+    "выгрузка по типу заказа; выгрузка по эффективности менеджеров." + SUPPORT
+)
+
+STANDARD_CONTENT = (
+    "Откройте отчёт по кнопке выше и войдите, используя логин и пароль от "
+    "вашего аккаунта CDN.\n"
+    "Используйте фильтры (поля со значком лупы) для выбора периода, региона и "
+    "других параметров: зелёная галочка — применить, Esc — отмена.\n"
+    "Экспорт: ПКМ по таблице → «Загрузить как…» → «Данные» → «Форматирование "
+    "таблицы» → «Экспорт»." + SUPPORT
+)
+
+MVP_AGENT_CONTENT = (
+    "MVP ИИ-агент помогает автоматизировать анализ и обработку технических "
+    "спецификаций (ТЗ) в государственных закупках:\n"
+    "• извлечение ключевой информации из лотов и технических документов;\n"
+    "• аналитика по участникам торгов (например, по БИН организаций);\n"
+    "• рекомендации по участию и стратегии ставок на основе истории участия "
+    "и побед;\n"
+    "• мониторинг цен, медианных разрывов и узких проигрышей;\n"
+    "• отчёты о конкурентах и динамике торгов.\n\n"
+    "Точки доступа:\n"
+    "• Веб: http://10.8.36.60:8501/ (резерв: http://10.71.76.202:8501/)\n"
+    "• Телеграм-бот: @goszakup_ai_KTbot\n\n"
+    "Примечание: ресурсы доступны из корпоративной сети."
+)
+
+SPEEDTEST_CONTENT = (
+    "Карта отображает провайдеров и качество их интернета в Казахстане на "
+    "основе данных SpeedTest.\n"
+    "Откройте веб-приложение по кнопке выше (доступно из корпоративной сети)."
+)
+
+SALESHELPER_CONTENT = (
+    "SalesHelper Bot оптимизирует и автоматизирует расчёт тарифов и генерацию "
+    "коммерческих предложений.\n"
+    "Откройте бота в Telegram (@kazakht_test_bot) и следуйте подсказкам."
+)
+
+# (name, slug, description, icon, order)
+CATEGORIES = [
+    ("Доход", "dohod",
+     "Дашборды по доходу, новым установкам и оттоку.", "chart-line", 1),
+    ("Заказы", "zakazy",
+     "Аналитика по заказам клиентов (CRM 2.0).", "shopping-cart", 2),
+    ("Контакты", "kontakty",
+     "Контактные данные действующих юридических лиц.", "phone", 3),
+    ("БИН-ы", "biny",
+     "Аналитика по БИН организаций.", "building", 4),
+    ("Объекты образования и здравоохранения", "obrazovanie-zdravoohranenie",
+     "Детализированные данные по объектам образования и здравоохранения.",
+     "hospital", 5),
+    ("ИИ-инструменты", "ai-instrumenty",
+     "ИИ-агенты и инструменты автоматизации.", "cpu", 6),
+]
+
+# Each report: title, slug, category_slug, kind, url, access, tags,
+# description, learning (content/video/presentation/faq).
 DASHBOARDS = [
-    ("Revenue Overview", "revenue-overview", "revenue", Dashboard.EMPLOYEE,
-     ["Overview", "Regions", "Details"], ["revenue", "regions", "churn"],
-     "Shows revenue, new installation requests, and churn by region and period."),
-    ("Orders Dashboard", "orders-dashboard", "orders", Dashboard.EMPLOYEE,
-     ["Overview", "Statuses", "Details"], ["orders", "status", "regions"],
-     "Detailed information about customer orders."),
-    ("BIN Analytics", "bin-analytics", "bin-analytics", Dashboard.MANAGER,
-     ["Overview", "Organizations", "Contacts"], ["organizations", "bin"],
-     "Analytics about legal entities and organizations."),
-    ("Contacts Dashboard", "contacts-dashboard", "contacts", Dashboard.EMPLOYEE,
-     ["Overview", "Contacts"], ["contacts", "organizations"],
-     "Contact availability across organizations."),
-    ("Education and Healthcare Objects", "education-healthcare-objects",
-     "education-healthcare", Dashboard.EMPLOYEE,
-     ["Overview", "Map/List", "Details"], ["education", "healthcare"],
-     "Demo analytics about education and healthcare objects."),
-    ("Provider SpeedTest Map", "provider-speedtest-map", "provider-speedtest",
-     Dashboard.EMPLOYEE, ["Overview", "Providers", "Regions"],
-     ["providers", "speed", "quality"],
-     "Demo analytics about internet providers and quality indicators."),
-    ("Government Procurement Analytics", "government-procurement-analytics",
-     "government-procurement", Dashboard.MANAGER,
-     ["Overview", "Competitors", "Recommendations"], ["procurement", "lots"],
-     "Demo information about government procurement lots and competitors."),
-    ("SalesHelper Dashboard", "saleshelper-dashboard", "sales-tools",
-     Dashboard.MANAGER, ["Overview", "Requests", "Details"],
-     ["sales", "offers", "conversion"],
-     "Demo analytics for sales support and commercial offer generation."),
+    {
+        "title": "Оперативный Дашборд по Макрорегионам",
+        "slug": "operativnyy-dashbord-makroregiony",
+        "category": "dohod", "kind": Dashboard.QLIK,
+        "url": "https://qtest/sense/app/"
+               "bffa967b-f9b9-4e63-85e0-133930f982de/overview",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["доход", "макрорегионы", "отток", "установки"],
+        "description": "Ключевые показатели периода: доход, новые заявки на "
+                       "установки и отток по оперативным данным.",
+        "content": FLAGSHIP_CONTENT, "faq": SHARED_FAQ,
+    },
+    {
+        "title": "Общая детализация 2 спец v2",
+        "slug": "obshchaya-detalizaciya-2-spec-v2",
+        "category": "dohod", "kind": Dashboard.QLIK,
+        "url": "https://qtest/sense/app/"
+               "f4d2eef3-d664-4273-869f-150d357c5d78/overview",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["детализация", "отчётный период"],
+        "description": "Детализированные данные за указанный отчётный период.",
+        "content": STANDARD_CONTENT, "faq": SHARED_FAQ,
+    },
+    {
+        "title": "Заказы CRM 2.0",
+        "slug": "zakazy-crm-2-0",
+        "category": "zakazy", "kind": Dashboard.QLIK,
+        "url": "https://qtest/sense/app/"
+               "049ee791-de65-4047-847e-76482333ef58/overview",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["заказы", "crm", "детализация"],
+        "description": "Представление детализированных данных по всем заказам.",
+        "content": STANDARD_CONTENT, "faq": SHARED_FAQ,
+    },
+    {
+        "title": "Контактные данные юридических лиц (CRM 2.0)",
+        "slug": "kontaktnye-dannye-crm-2-0",
+        "category": "kontakty", "kind": Dashboard.QLIK,
+        "url": "https://qtest/sense/app/"
+               "48ac9ee8-e738-49c0-83fc-ca9eba11df8a/overview",
+        "access": Dashboard.MANAGER,
+        "tags": ["контакты", "юрлица", "crm"],
+        "description": "Контактные данные действующих юридических лиц из "
+                       "системы CRM 2.0.",
+        "content": STANDARD_CONTENT, "faq": SHARED_FAQ,
+    },
+    {
+        "title": "Дашборд БИН-ы 2026",
+        "slug": "dashbord-biny-2026",
+        "category": "biny", "kind": Dashboard.QLIK,
+        "url": "https://qtest/sense/app/"
+               "c9270bac-0f62-4b76-b727-04618908415c/overview",
+        "access": Dashboard.MANAGER,
+        "tags": ["бин", "организации"],
+        "description": "Содержит полную информацию по БИН организаций.",
+        "content": STANDARD_CONTENT, "faq": SHARED_FAQ,
+    },
+    {
+        "title": "Дашборд по объектам образования и здравоохранения",
+        "slug": "obekty-obrazovaniya-zdravoohraneniya",
+        "category": "obrazovanie-zdravoohranenie", "kind": Dashboard.QLIK,
+        "url": "https://qtest/sense/app/"
+               "c51f54cb-8f1b-458a-aaa3-a27b95a9f08f/overview",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["образование", "здравоохранение", "объекты"],
+        "description": "Детализированные данные по объектам образования и "
+                       "здравоохранения.",
+        "content": STANDARD_CONTENT, "faq": SHARED_FAQ,
+    },
+    {
+        "title": "MVP ИИ-агент для госзакупок",
+        "slug": "mvp-ii-agent-goszakupki",
+        "category": "ai-instrumenty", "kind": Dashboard.WEB,
+        "url": "http://10.8.36.60:8501/",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["ии", "госзакупки", "тз", "агент"],
+        "description": "ИИ-агент для автоматизации анализа технических "
+                       "спецификаций и аналитики по госзакупкам.",
+        "content": MVP_AGENT_CONTENT, "faq": [],
+    },
+    {
+        "title": "Карта провайдеров (SpeedTest)",
+        "slug": "karta-provayderov-speedtest",
+        "category": "ai-instrumenty", "kind": Dashboard.WEB,
+        "url": "http://10.8.36.60:5174/",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["провайдеры", "speedtest", "карта"],
+        "description": "Карта провайдеров и качества интернета в Казахстане на "
+                       "основе данных SpeedTest.",
+        "content": SPEEDTEST_CONTENT, "faq": [],
+    },
+    {
+        "title": "SalesHelper Bot",
+        "slug": "saleshelper-bot",
+        "category": "ai-instrumenty", "kind": Dashboard.BOT,
+        "url": "https://t.me/kazakht_test_bot",
+        "access": Dashboard.EMPLOYEE,
+        "tags": ["продажи", "тарифы", "бот"],
+        "description": "Инструмент для оптимизации расчёта тарифов и генерации "
+                       "коммерческих предложений.",
+        "content": SALESHELPER_CONTENT, "faq": [],
+    },
 ]
 
 PERMISSIONS = [
     # role_name, can_view, can_export, can_edit
-    # Visibility is driven by access_level; these rows grant export rights to
-    # the roles that can already view the dashboard (can_view kept False so the
-    # access_level RBAC stays meaningful in the demo).
     (Role.ADMIN, False, True, True),
     (Role.ANALYST, False, True, True),
     (Role.MANAGER, False, True, False),
@@ -98,11 +248,13 @@ PERMISSIONS = [
 
 
 class Command(BaseCommand):
-    help = "Seed demo/fake data for the Analytics & Learning Platform."
+    help = "Seed the catalog (categories, reports, learning materials)."
 
     def add_arguments(self, parser):
         parser.add_argument("--if-empty", action="store_true",
                             help="Skip seeding if categories already exist.")
+        parser.add_argument("--reseed", action="store_true",
+                            help="Wipe and rebuild the catalog (keeps users).")
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -110,12 +262,24 @@ class Command(BaseCommand):
             self.stdout.write("Data already present — skipping seed.")
             return
 
-        random.seed(42)
         self._seed_roles_and_users()
+
+        if options["reseed"]:
+            self._wipe_catalog()
+
         categories = self._seed_categories()
         self._seed_dashboards(categories)
-        self._seed_demo_records()
-        self.stdout.write(self.style.SUCCESS("Demo data seeded successfully."))
+        self.stdout.write(self.style.SUCCESS("Catalog seeded successfully."))
+
+    # --- wipe catalog (preserve users/roles/audit) ---
+    def _wipe_catalog(self):
+        LearningMaterial.objects.all().delete()
+        DashboardWidget.objects.all().delete()
+        DashboardSheet.objects.all().delete()
+        DashboardPermission.objects.all().delete()
+        Dashboard.objects.all().delete()
+        Category.objects.all().delete()
+        self.stdout.write("Catalog wiped for reseed.")
 
     # --- roles & users ---
     def _seed_roles_and_users(self):
@@ -129,8 +293,8 @@ class Command(BaseCommand):
              "Analytics", "Analyst"),
             ("Demo Manager", "manager@example.com", "manager123", Role.MANAGER,
              "Sales", "Manager"),
-            ("Demo Employee", "employee@example.com", "employee123", Role.EMPLOYEE,
-             "Operations", "Specialist"),
+            ("Demo Employee", "employee@example.com", "employee123",
+             Role.EMPLOYEE, "Operations", "Specialist"),
         ]
         for full_name, email, password, role, dept, position in demo_users:
             user, created = User.objects.get_or_create(
@@ -143,8 +307,7 @@ class Command(BaseCommand):
             if created:
                 user.set_password(password)
                 user.save()
-            role_obj = Role.objects.get(name=role)
-            user.roles.set([role_obj])
+            user.roles.set([Role.objects.get(name=role)])
 
     # --- categories ---
     def _seed_categories(self):
@@ -158,162 +321,40 @@ class Command(BaseCommand):
             result[slug] = cat
         return result
 
-    # --- dashboards, sheets, widgets, permissions, learning ---
+    # --- dashboards (reports) + permissions + learning ---
     def _seed_dashboards(self, categories):
         admin = User.objects.filter(email="admin@example.com").first()
-        for title, slug, cat_slug, access, sheets, tags, desc in DASHBOARDS:
+        for item in DASHBOARDS:
             dash, created = Dashboard.objects.get_or_create(
-                slug=slug,
+                slug=item["slug"],
                 defaults={
-                    "category": categories[cat_slug],
-                    "title": title,
-                    "description": desc,
-                    "business_purpose": f"Helps teams monitor {title.lower()}.",
-                    "owner_name": "Analytics Team",
-                    "access_level": access,
+                    "category": categories[item["category"]],
+                    "title": item["title"],
+                    "description": item["description"],
+                    "report_url": item["url"],
+                    "report_kind": item["kind"],
+                    "business_purpose": item["description"],
+                    "owner_name": "Отдел BI",
+                    "access_level": item["access"],
                     "status": Dashboard.PUBLISHED,
-                    "tags": ", ".join(tags),
+                    "tags": ", ".join(item["tags"]),
                     "last_updated_at": timezone.now(),
                     "created_by": admin,
                 },
             )
             if not created:
                 continue
-            for i, sheet_title in enumerate(sheets, start=1):
-                sheet = DashboardSheet.objects.create(
-                    dashboard=dash, title=sheet_title,
-                    slug=sheet_title.lower().replace(" ", "-").replace("/", "-"),
-                    description=f"{sheet_title} sheet", display_order=i,
-                )
-                if i == 1:
-                    self._seed_overview_widgets(sheet)
             for role_name, cv, ce, ced in PERMISSIONS:
                 DashboardPermission.objects.create(
                     dashboard=dash, role_name=role_name,
                     can_view=cv, can_export=ce, can_edit=ced,
                 )
             LearningMaterial.objects.create(
-                dashboard=dash, title=f"How to use {title}",
-                content=("Use the filters to select region and period. "
-                         "Switch between sheets to view details. "
-                         "Click Export CSV on the table to download filtered data."),
-                video_url="https://example.com/demo-video",
-                presentation_url="https://example.com/demo-presentation",
-                faq_json=[
-                    {"question": "How do I export data?",
-                     "answer": "Open the table and click Export CSV."},
-                    {"question": "How do I filter by region?",
-                     "answer": "Use the Region dropdown in the filter bar."},
-                ],
+                dashboard=dash,
+                title=f"Инструкция: {item['title']}",
+                content=item["content"],
+                video_url="",
+                presentation_url="",
+                faq_json=item["faq"],
                 created_by=admin,
             )
-
-    def _seed_overview_widgets(self, sheet):
-        DashboardWidget.objects.create(
-            sheet=sheet, type=DashboardWidget.KPI_CARD, title="Key Metrics",
-            description="Primary KPIs for the selected period",
-            config_json={"source": "kpis"},
-            position_json={"x": 0, "y": 0, "w": 12, "h": 1}, display_order=1,
-        )
-        DashboardWidget.objects.create(
-            sheet=sheet, type=DashboardWidget.BAR_CHART, title="Breakdown",
-            description="Primary chart", config_json={"source": "charts", "index": 0},
-            position_json={"x": 0, "y": 1, "w": 6, "h": 4}, display_order=2,
-        )
-        DashboardWidget.objects.create(
-            sheet=sheet, type=DashboardWidget.DATA_TABLE, title="Details",
-            description="Detailed records", config_json={"source": "table"},
-            position_json={"x": 0, "y": 5, "w": 12, "h": 5}, display_order=3,
-        )
-
-    # --- demo dataset records ---
-    def _seed_demo_records(self):
-        if DemoRevenueRecord.objects.exists():
-            return
-        today = date(2026, 6, 1)
-
-        # Revenue: monthly per region over 6 months.
-        revenue = []
-        for month in range(6):
-            d = date(2026, month + 1, 1)
-            for region in REGIONS:
-                revenue.append(DemoRevenueRecord(
-                    record_date=d, region=region,
-                    revenue=Decimal(random.randint(8_000_000, 50_000_000)),
-                    new_installation_requests=random.randint(20, 120),
-                    churn_count=random.randint(1, 15),
-                ))
-        DemoRevenueRecord.objects.bulk_create(revenue)
-
-        # Orders.
-        statuses = ["COMPLETED", "PENDING", "CANCELLED"]
-        orders = [
-            DemoOrderRecord(
-                order_number=f"ORD-{1000 + i}",
-                order_date=today - timedelta(days=random.randint(0, 150)),
-                region=random.choice(REGIONS),
-                status=random.choice(statuses),
-                customer_type=random.choice(["B2B", "B2C"]),
-                amount=Decimal(random.randint(50_000, 2_000_000)),
-            ) for i in range(120)
-        ]
-        DemoOrderRecord.objects.bulk_create(orders)
-
-        # Organizations.
-        orgs = [
-            DemoOrganizationRecord(
-                bin=f"{random.randint(100000000000, 999999999999)}",
-                organization_name=f"Demo Org {i}",
-                region=random.choice(REGIONS),
-                organization_type=random.choice(ORG_TYPES),
-                contact_phone=f"+7700{random.randint(1000000, 9999999)}",
-                contact_email=f"org{i}@example.com",
-                is_active=random.random() > 0.2,
-            ) for i in range(60)
-        ]
-        DemoOrganizationRecord.objects.bulk_create(orgs)
-
-        # Provider speed.
-        speeds = []
-        for month in range(6):
-            d = date(2026, month + 1, 15)
-            for provider in PROVIDERS:
-                for region in REGIONS:
-                    speeds.append(DemoProviderSpeedRecord(
-                        test_date=d, region=region, provider_name=provider,
-                        download_speed=Decimal(random.randint(40, 300)),
-                        upload_speed=Decimal(random.randint(20, 150)),
-                        latency_ms=Decimal(random.randint(5, 60)),
-                        quality_score=Decimal(f"{random.uniform(3, 5):.2f}"),
-                    ))
-        DemoProviderSpeedRecord.objects.bulk_create(speeds)
-
-        # Procurement.
-        results = ["WON", "LOST"]
-        procurement = [
-            DemoProcurementRecord(
-                lot_number=f"LOT-{2000 + i}",
-                lot_title=f"Demo Procurement Lot {i}",
-                region=random.choice(REGIONS),
-                planned_amount=Decimal(random.randint(1_000_000, 30_000_000)),
-                winning_amount=Decimal(random.randint(900_000, 29_000_000)),
-                competitor_count=random.randint(1, 8),
-                status=random.choice(["OPEN", "CLOSED"]),
-                result=random.choice(results),
-            ) for i in range(40)
-        ]
-        DemoProcurementRecord.objects.bulk_create(procurement)
-
-        # Sales.
-        sales = [
-            DemoSalesRecord(
-                request_date=today - timedelta(days=random.randint(0, 120)),
-                region=random.choice(REGIONS),
-                product_name=random.choice(["Internet", "TV", "Bundle", "Cloud"]),
-                tariff_name=random.choice(["Basic", "Standard", "Premium"]),
-                offer_amount=Decimal(random.randint(5_000, 80_000)),
-                status=random.choice(["NEW", "SENT", "WON", "LOST"]),
-                conversion_probability=Decimal(f"{random.uniform(10, 95):.2f}"),
-            ) for i in range(50)
-        ]
-        DemoSalesRecord.objects.bulk_create(sales)

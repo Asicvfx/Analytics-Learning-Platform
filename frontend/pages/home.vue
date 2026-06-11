@@ -31,10 +31,10 @@ onMounted(async () => {
              text-white p-8 mb-8"
     >
       <h1 class="text-2xl md:text-3xl font-bold">
-        Welcome back, {{ auth.user?.fullName }}
+        С возвращением, {{ auth.user?.fullName }}
       </h1>
       <p class="text-white/85 mt-1">
-        Find a dashboard, explore analytics, and learn how to use every report.
+        Находите отчёты, открывайте аналитику и учитесь работать с каждым отчётом.
       </p>
     </div>
 
@@ -42,7 +42,7 @@ onMounted(async () => {
 
     <template v-else>
       <section class="mb-8">
-        <h2 class="text-lg font-semibold text-ink mb-3">Categories</h2>
+        <h2 class="text-lg font-semibold text-ink mb-3">Категории</h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <NuxtLink
             v-for="c in categories"
@@ -53,7 +53,7 @@ onMounted(async () => {
             <p class="font-semibold text-ink">{{ c.name }}</p>
             <p class="text-xs text-muted mt-1 line-clamp-2">{{ c.description }}</p>
             <p class="text-xs text-brand-deep mt-2 font-medium">
-              {{ c.dashboardCount ?? 0 }} dashboards
+              Отчётов: {{ c.dashboardCount ?? 0 }}
             </p>
           </NuxtLink>
         </div>
@@ -61,9 +61,9 @@ onMounted(async () => {
 
       <section>
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold text-ink">Recent dashboards</h2>
+          <h2 class="text-lg font-semibold text-ink">Недавние отчёты</h2>
           <NuxtLink to="/dashboards" class="text-sm text-brand-deep font-medium">
-            View all →
+            Все отчёты →
           </NuxtLink>
         </div>
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

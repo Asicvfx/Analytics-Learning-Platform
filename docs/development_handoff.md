@@ -1,5 +1,19 @@
 # Development Handoff
 
+## Update (2026-06): external-report catalog + real Kazakhtelecom content
+- The platform pivoted from internally-rendered BI to a **catalog of external
+  reports**. `Dashboard` gained `report_url` + `report_kind` (QLIK/WEB/BOT).
+  The report page (`pages/dashboards/[id].vue`) now shows the header + an
+  "Открыть отчёт" button + learning materials (instructions/presentation/video)
+  + FAQ. Internal charts/filters/CSV export were removed from the page (the
+  backend `data_service`, `sheets`, `widgets`, demo tables remain but unused).
+- `seed_demo.py` rewritten with the **real** RU catalog (Доход/Заказы/Контакты/
+  БИН-ы/Образование+Здравоохранение/ИИ-инструменты) + qtest/Qlik links, BI
+  contacts, shared Qlik FAQ. Added `--reseed` (wipe+rebuild, keeps users);
+  `entrypoint.sh` runs it when env `RESEED=1`. UI localized to Russian.
+- Caveat: qtest/10.x links open only from the corporate network; not from the
+  public Vercel deploy.
+
 ## Status: First version scaffolded end-to-end (demo data only)
 
 ### Implemented

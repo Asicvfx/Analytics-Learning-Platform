@@ -6,6 +6,8 @@ export interface DashboardFormData {
   slug: string;
   description: string;
   businessPurpose: string;
+  reportUrl: string;
+  reportKind: string;
   categoryId: number | null;
   accessLevel: string;
   status: string;
@@ -27,6 +29,7 @@ const accessLevels = [
   "ADMIN_ONLY", "ANALYST_ONLY", "MANAGER", "EMPLOYEE", "PUBLIC_INTERNAL",
 ];
 const statuses = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+const reportKinds = ["QLIK", "WEB", "BOT"];
 
 function update<K extends keyof DashboardFormData>(
   key: K,
@@ -74,6 +77,27 @@ function update<K extends keyof DashboardFormData>(
         rows="2"
         @input="update('businessPurpose', ($event.target as HTMLTextAreaElement).value)"
       />
+    </div>
+    <div class="grid sm:grid-cols-3 gap-4">
+      <div class="sm:col-span-2">
+        <label class="label">Report URL</label>
+        <input
+          :value="modelValue.reportUrl"
+          class="input"
+          placeholder="https://qtest/sense/app/…/overview"
+          @input="update('reportUrl', ($event.target as HTMLInputElement).value)"
+        />
+      </div>
+      <div>
+        <label class="label">Report kind</label>
+        <select
+          :value="modelValue.reportKind"
+          class="input"
+          @change="update('reportKind', ($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="k in reportKinds" :key="k" :value="k">{{ k }}</option>
+        </select>
+      </div>
     </div>
     <div class="grid sm:grid-cols-2 gap-4">
       <div>

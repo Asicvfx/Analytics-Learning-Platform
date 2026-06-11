@@ -37,12 +37,12 @@ const updated = computed(() =>
     </div>
 
     <div class="flex items-center justify-between text-xs text-muted mt-1">
-      <span>{{ dashboard.sheetCount }} sheets</span>
-      <span>Updated {{ updated }}</span>
+      <span>{{ dashboard.reportKind }}</span>
+      <span>Обновлено {{ updated }}</span>
     </div>
 
     <NuxtLink :to="`/dashboards/${dashboard.slug}`" class="btn-primary mt-1">
-      Open Dashboard
+      Открыть отчёт
     </NuxtLink>
   </div>
 </template>

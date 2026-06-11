@@ -42,19 +42,19 @@ onMounted(async () => {
     <template v-else-if="category">
       <PageHeader :title="category.name" :subtitle="category.description">
         <template #actions>
-          <NuxtLink to="/categories" class="btn-secondary">All categories</NuxtLink>
+          <NuxtLink to="/categories" class="btn-secondary">Все категории</NuxtLink>
         </template>
       </PageHeader>
 
       <div class="card p-4 mb-6 max-w-md">
-        <input v-model="search" class="input" placeholder="Search in category…" />
+        <input v-model="search" class="input" placeholder="Поиск в категории…" />
       </div>
 
       <StateBlocks
         v-if="!filtered.length"
         variant="empty"
-        title="No dashboards found"
-        message="Try changing your search."
+        title="Отчёты не найдены"
+        message="Измените запрос поиска."
       />
       <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <DashboardCard v-for="d in filtered" :key="d.id" :dashboard="d" />

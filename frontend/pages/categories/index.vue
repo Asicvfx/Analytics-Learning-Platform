@@ -20,8 +20,8 @@ onMounted(async () => {
 <template>
   <div>
     <PageHeader
-      title="Categories"
-      subtitle="Browse dashboards by business category."
+      title="Категории"
+      subtitle="Отчёты сгруппированы по бизнес-категориям."
     />
     <StateBlocks v-if="loading" variant="loading" />
     <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -34,7 +34,7 @@ onMounted(async () => {
         <h3 class="font-semibold text-ink text-lg">{{ c.name }}</h3>
         <p class="text-sm text-muted mt-1">{{ c.description }}</p>
         <p class="text-sm text-brand-deep font-medium mt-3">
-          {{ c.dashboardCount ?? 0 }} dashboards →
+          Отчётов: {{ c.dashboardCount ?? 0 }} →
         </p>
       </NuxtLink>
     </div>

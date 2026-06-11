@@ -11,14 +11,14 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: "Analytics & Learning Platform",
+      title: "Kazakhtelecom Business — Аналитика и обучение",
       meta: [
         { charset: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         {
           name: "description",
           content:
-            "Corporate analytics, dashboards, and learning materials in one secure platform.",
+            "Корпоративная платформа аналитики, отчётов и обучающих материалов.",
         },
       ],
     },

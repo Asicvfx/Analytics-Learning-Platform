@@ -18,6 +18,8 @@ const form = reactive<DashboardFormData>({
   slug: "",
   description: "",
   businessPurpose: "",
+  reportUrl: "",
+  reportKind: "QLIK",
   categoryId: null,
   accessLevel: "EMPLOYEE",
   status: "DRAFT",
@@ -35,6 +37,8 @@ async function submit() {
         slug: form.slug,
         description: form.description,
         businessPurpose: form.businessPurpose,
+        reportUrl: form.reportUrl,
+        reportKind: form.reportKind,
         categoryId: form.categoryId,
         accessLevel: form.accessLevel,
         status: form.status,
@@ -60,6 +64,8 @@ onMounted(async () => {
   form.slug = d.slug;
   form.description = d.description;
   form.businessPurpose = d.businessPurpose;
+  form.reportUrl = d.reportUrl;
+  form.reportKind = d.reportKind;
   form.categoryId = d.category.id;
   form.accessLevel = d.accessLevel;
   form.status = d.status;

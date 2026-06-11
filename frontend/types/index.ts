@@ -46,6 +46,8 @@ export interface DashboardCard {
   category: CategoryMini;
   tags: string[];
   accessLevel: string;
+  reportUrl: string;
+  reportKind: "QLIK" | "WEB" | "BOT";
   status: string;
   sheetCount: number;
   lastUpdatedAt: string | null;

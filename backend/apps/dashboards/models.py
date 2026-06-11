@@ -27,11 +27,21 @@ class Dashboard(TimeStampedModel):
         (PUBLIC_INTERNAL, "Public internal"),
     ]
 
+    # report_kind — how the linked report is opened (controls the button label).
+    QLIK = "QLIK"
+    WEB = "WEB"
+    BOT = "BOT"
+    KIND_CHOICES = [(QLIK, "Qlik Sense"), (WEB, "Web app"), (BOT, "Telegram bot")]
+
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="dashboards")
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True, default="")
+    # External link to the actual report/app (Qlik Sense, web tool, or bot).
+    report_url = models.TextField(blank=True, default="")
+    report_kind = models.CharField(max_length=20, choices=KIND_CHOICES,
+                                   default=QLIK)
     business_purpose = models.TextField(blank=True, default="")
     owner_name = models.CharField(max_length=255, blank=True, default="")
     access_level = models.CharField(max_length=50, choices=ACCESS_CHOICES,
